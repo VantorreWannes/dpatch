@@ -1,0 +1,51 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Zig Test (prompt for filter)",
+            "type": "shell",
+            "command": "zig",
+            "args": [
+                "build",
+                "-Dllvm",
+                "test",
+                "--", 
+                "--test-filter",
+                "${input:testName}"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$zig" 
+            ],
+            "detail": "Builds the test executable, prompting for a specific test name to filter."
+        },
+        {
+            "label": "Build Zig Main",
+            "type": "shell",
+            "command": "zig",
+            "args": [
+                "build",
+                "-Dllvm",
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$zig" 
+            ],
+            "detail": "Builds the main executable."
+        },
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "type": "promptString",
+            "description": "Enter the name of the test to run",
+            "default": ""
+        }
+    ]
+}
