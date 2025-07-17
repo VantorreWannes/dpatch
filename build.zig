@@ -12,7 +12,9 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("dpatch", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
-        .imports = &.{.{ .name = "lis_lcs", .module = lis_lcs_mod }},
+        .imports = &.{
+            .{ .name = "lis_lcs", .module = lis_lcs_mod },
+        },
     });
 
     const exe = b.addExecutable(.{
@@ -59,4 +61,28 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
+
+    const zbench_pkg = b.dependency("zbench", .{ .target = target, .optimize = optimize });
+    const zbench_mod = zbench_pkg.module("zbench");
+
+    const bench_exe = b.addExecutable(.{
+        .name = "benchmarks",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/bench.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "dpatch", .module = mod },
+                .{ .name = "zbench", .module = zbench_mod },
+                .{ .name = "lis_lcs", .module = lis_lcs_mod },
+            },
+        }),
+    });
+
+    b.installArtifact(bench_exe);
+
+    const bench_cmd = b.addRunArtifact(bench_exe);
+
+    const bench_step = b.step("bench", "Run benchmarks");
+    bench_step.dependOn(&bench_cmd.step);
 }

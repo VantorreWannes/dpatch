@@ -8,6 +8,10 @@
             .url = "git+https://github.com/VantorreWannes/lis_lcs.git#afc573cef2c4e10f6ea0b97273854c85204a9e97",
             .hash = "lis_lcs-0.0.0-BZdXtm8mAADb9JQ2B5vyItfa8dNmrdiaMCf5ltzdykPD",
         },
+        .zbench = .{
+            .url = "git+https://github.com/hendriknielaender/zBench.git#c64bb43a3e32c5c62c02058ad7247e072301708d",
+            .hash = "zbench-0.10.0-YTdc714iAQDO4lTHMnIljYHPZ5v_sNTsw75vAmO1pyT-",
+        },
     },
     .paths = .{
         "build.zig",
