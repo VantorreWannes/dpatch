@@ -1,0 +1,30 @@
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "type": "lldb",
+                "request": "launch",
+                "name": "Debug Zig Main",
+                "program": "${workspaceFolder}/zig-out/bin/${workspaceFolderBasename}",
+                "args": [],
+                "cwd": "${workspaceFolder}",
+                "preLaunchTask": "Build Zig Main",
+                "sourceLanguages": [
+                    "zig"
+                ],
+            },
+            {
+                "type": "lldb",
+                "request": "launch",
+                "name": "Debug Zig Test",
+                "program": "${workspaceFolder}/zig-out/bin/test",
+                "args": [],
+                "cwd": "${workspaceFolder}",
+                "preLaunchTask": "Build Zig Test (prompt for filter)",
+                "sourceLanguages": [
+                    "zig"
+                ],
+            },
+            
+        ]
+    }

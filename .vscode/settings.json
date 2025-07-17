@@ -1,0 +1,10 @@
+{
+    "zig.testArgs": [
+        "build",
+        "-Dllvm",
+        "test",
+        "--",
+        "--test-filter",
+        "${filter}"
+    ],
+}
