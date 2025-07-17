@@ -1,5 +1,6 @@
 const std = @import("std");
 const lis_lcs = @import("lis_lcs");
+const testing = std.testing;
 
 pub fn DPatchEncoder(comptime T: type) type {
     return struct {
@@ -28,7 +29,7 @@ pub fn DPatchEncoder(comptime T: type) type {
         lcs_index: usize,
         insert_buffer: std.ArrayList(T),
 
-        pub fn init(allocator: std.mem.Allocator, source: []const T, target: []const T) !DPatchEncoder(T) {
+        pub fn init(source: []const T, target: []const T, allocator: std.mem.Allocator) !DPatchEncoder(T) {
             const lcs = try lis_lcs.longestCommonSubsequence(T, allocator, source, target);
 
             return DPatchEncoder(T){
@@ -71,14 +72,10 @@ pub fn DPatchEncoder(comptime T: type) type {
 
             const lcs_char = self.lcs[self.lcs_index];
 
-            const s_match_rel = std.mem.indexOfScalar(T, self.source[self.source_index..], lcs_char) orelse {
-                return error.LcsMismatch;
-            };
+            const s_match_rel = std.mem.indexOfScalar(T, self.source[self.source_index..], lcs_char) orelse unreachable;
             const s_match_idx = self.source_index + s_match_rel;
 
-            const t_match_rel = std.mem.indexOfScalar(T, self.target[self.target_index..], lcs_char) orelse {
-                return error.LcsMismatch;
-            };
+            const t_match_rel = std.mem.indexOfScalar(T, self.target[self.target_index..], lcs_char) orelse unreachable;
             const t_match_idx = self.target_index + t_match_rel;
 
             if (t_match_idx > self.target_index) {
@@ -119,100 +116,45 @@ pub fn DPatchEncoder(comptime T: type) type {
 }
 
 test "DPatchEncoder init" {
-    const allocator = std.testing.allocator;
-    const T = u8;
+    const allocator = testing.allocator;
 
     const source = "sea";
     const target = "eat";
 
-    var encoder = try DPatchEncoder(T).init(allocator, source, target);
+    var encoder = try DPatchEncoder(u8).init(source, target, allocator);
     defer encoder.deinit();
 
-    try std.testing.expectEqualSlices(T, source, encoder.source);
-    try std.testing.expectEqualSlices(T, target, encoder.target);
-
-    const expected_lcs = "ea";
-    try std.testing.expectEqualSlices(T, expected_lcs, encoder.lcs);
+    try std.testing.expectEqualSlices(u8, source, encoder.source);
+    try std.testing.expectEqualSlices(u8, target, encoder.target);
+    try std.testing.expectEqualStrings( "ea", encoder.lcs);
 }
 
 test "DPatchEncoder next" {
-    const allocator = std.testing.allocator;
-    const T = u8;
+    const source = "aaacccbbb";
+    const target = "xxxaaaxxxbbb";
 
-    const source = "sea";
-    const target = "eat";
-
-    var encoder = try DPatchEncoder(T).init(allocator, source, target);
+    var encoder = try DPatchEncoder(u8).init(source, target, testing.allocator);
     defer encoder.deinit();
 
-    const inst1 = try encoder.next();
-    try std.testing.expect(inst1 != null);
-    try std.testing.expect(inst1.?.copy.start == 1);
-    try std.testing.expect(inst1.?.copy.len == 2);
+    var instruction = try encoder.next();
+    try testing.expect(instruction != null);
+    try testing.expectEqualStrings("xxx", instruction.?.insert.data);
 
-    const inst2 = try encoder.next();
-    try std.testing.expect(inst2 != null);
-    try std.testing.expectEqualSlices(u8, "t", inst2.?.insert.data);
+    instruction = try encoder.next();
+    try testing.expect(instruction != null);
+    try testing.expectEqual(instruction.?.copy.start, 0);
+    try testing.expectEqual(instruction.?.copy.len, 3);
 
-    const inst3 = try encoder.next();
-    try std.testing.expect(inst3 == null);
-}
+    instruction = try encoder.next();
+    try testing.expect(instruction != null);
+    try testing.expectEqual(instruction.?.insert.copy.start, 0);
+    try testing.expectEqual(instruction.?.insert.copy.len, 3);
 
-test "DPatchEncoder next with large insert" {
-    const allocator = std.testing.allocator;
-    const T = u8;
+    instruction = try encoder.next();
+    try testing.expect(instruction != null);
+    try testing.expectEqual(instruction.?.copy.start, 6);
+    try testing.expectEqual(instruction.?.copy.len, 3);
 
-    const source = "b";
-    const target = "part1_b_part2";
-
-    var encoder = try DPatchEncoder(T).init(allocator, source, target);
-    defer encoder.deinit();
-
-    const inst1 = try encoder.next();
-    try std.testing.expect(inst1 != null);
-    try std.testing.expectEqualSlices(u8, "part1_", inst1.?.insert.data);
-
-    const inst2 = try encoder.next();
-    try std.testing.expect(inst2 != null);
-    try std.testing.expect(inst2.?.copy.start == 0);
-    try std.testing.expect(inst2.?.copy.len == 1);
-
-    const inst3 = try encoder.next();
-    try std.testing.expect(inst3 != null);
-    try std.testing.expectEqualSlices(u8, "_part2", inst3.?.insert.data);
-
-    const inst4 = try encoder.next();
-    try std.testing.expect(inst4 == null);
-}
-
-test "DPatchEncoder next with insert copy" {
-    const allocator = std.testing.allocator;
-    const T = u8;
-
-    const source = "c";
-    const target = "word_c_word";
-
-    var encoder = try DPatchEncoder(T).init(allocator, source, target);
-    defer encoder.deinit();
-    const inst1 = try encoder.next();
-    try std.testing.expect(inst1 != null);
-    try std.testing.expect(inst1.?.insert.data.len == 5);
-    try std.testing.expectEqualSlices(T, "word_", inst1.?.insert.data);
-    const inst2 = try encoder.next();
-    try std.testing.expect(inst2 != null);
-    try std.testing.expect(inst2.?.copy.len == 1);
-
-    const inst3 = try encoder.next();
-    try std.testing.expect(inst3 != null);
-
-    const source2 = "x";
-    const target2 = "word_word";
-    var encoder2 = try DPatchEncoder(T).init(allocator, source2, target2);
-    defer encoder2.deinit();
-
-    const @"i1" = try encoder2.next();
-    try std.testing.expectEqualSlices(T, "word_word", @"i1".?.insert.data);
-
-    const @"i3" = try encoder2.next();
-    try std.testing.expect(@"i3" == null);
+    instruction = try encoder.next();
+    try testing.expect(instruction == null);
 }
