@@ -100,3 +100,20 @@ test "encode and decode" {
     defer allocator.free(decoded);
     try std.testing.expectEqualStrings(target, decoded);
 }
+
+test "fuzz encode and decode" {
+    const Context = struct {
+        fn testOne(context: @This(), input: []const u8) anyerror!void {
+            _ = context;
+            const source = input[0..input.len / 2];
+            const target = input[input.len / 2..];
+            const allocator = testing.allocator;
+            const patch = try encode(u8, source, target, allocator);
+            defer allocator.free(patch);
+            const decoded = try decode(u8, source, patch, allocator);
+            defer allocator.free(decoded);
+            try std.testing.expectEqualStrings(target, decoded);
+        }
+    };
+    try std.testing.fuzz(Context{}, Context.testOne, .{});
+}
