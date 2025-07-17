@@ -4,6 +4,10 @@
     .fingerprint = 0x6ae8dc46be91d92, // Changing this has security and trust implications.
     .minimum_zig_version = "0.15.0-dev.919+044ccf413",
     .dependencies = .{
+        .lis_lcs = .{
+            .url = "git+https://github.com/VantorreWannes/lis_lcs.git#afc573cef2c4e10f6ea0b97273854c85204a9e97",
+            .hash = "lis_lcs-0.0.0-BZdXtm8mAADb9JQ2B5vyItfa8dNmrdiaMCf5ltzdykPD",
+        },
     },
     .paths = .{
         "build.zig",

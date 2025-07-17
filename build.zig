@@ -3,11 +3,16 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
     const use_llvm = b.option(bool, "llvm", "Use the LLVM backend");
+
+    const lis_lcs_pkg = b.dependency("lis_lcs", .{ .target = target, .optimize = optimize });
+    const lis_lcs_mod = lis_lcs_pkg.module("lis_lcs");
 
     const mod = b.addModule("dpatch", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
+        .imports = &.{.{ .name = "lis_lcs", .module = lis_lcs_mod }},
     });
 
     const exe = b.addExecutable(.{
@@ -18,6 +23,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "dpatch", .module = mod },
+                .{ .name = "lis_lcs", .module = lis_lcs_mod },
             },
         }),
         .use_llvm = use_llvm,
@@ -53,5 +59,4 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
-
 }
