@@ -39,7 +39,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut().writer();
 
-    const allocator =  std.heap.smp_allocator;
+    const allocator = std.heap.smp_allocator;
 
     var bench = zbench.Benchmark.init(allocator, .{});
     defer bench.deinit();
