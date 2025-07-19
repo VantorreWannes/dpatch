@@ -23,7 +23,7 @@ fn DpatchEncoderBenchmark(comptime length: comptime_int, comptime alphabet_size:
         }
 
         pub fn run(self: @This(), _: std.mem.Allocator) void {
-            var iterator = encoder.DPatchEncoder(u8).init(&self.source,&self.target, std.heap.smp_allocator) catch unreachable;
+            var iterator = encoder.DPatchEncoder(u8).init(&self.source, &self.target, std.heap.smp_allocator) catch unreachable;
             defer iterator.deinit();
             while (iterator.next() catch unreachable) |item| {
                 std.mem.doNotOptimizeAway(item);
@@ -31,7 +31,6 @@ fn DpatchEncoderBenchmark(comptime length: comptime_int, comptime alphabet_size:
         }
     };
 }
-
 
 pub fn main() !void {
     var seed: u64 = undefined;
@@ -53,7 +52,7 @@ pub fn main() !void {
             const name = try std.fmt.allocPrint(
                 allocator,
                 "DpatchEncoder_L{d}_A{d}",
-                .{length, alphabet_size},
+                .{ length, alphabet_size },
             );
             const Benchmark = DpatchEncoderBenchmark(length, alphabet_size);
             try bench.addParam(name, &Benchmark.init(&random), .{});

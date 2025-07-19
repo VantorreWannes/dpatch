@@ -105,8 +105,8 @@ test "fuzz encode and decode" {
     const Context = struct {
         fn testOne(context: @This(), input: []const u8) anyerror!void {
             _ = context;
-            const source = input[0..input.len / 2];
-            const target = input[input.len / 2..];
+            const source = input[0 .. input.len / 2];
+            const target = input[input.len / 2 ..];
             const allocator = testing.allocator;
             const patch = try encode(u8, source, target, allocator);
             defer allocator.free(patch);

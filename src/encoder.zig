@@ -126,7 +126,7 @@ test "DPatchEncoder init" {
 
     try std.testing.expectEqualSlices(u8, source, encoder.source);
     try std.testing.expectEqualSlices(u8, target, encoder.target);
-    try std.testing.expectEqualStrings( "ea", encoder.lcs);
+    try std.testing.expectEqualStrings("ea", encoder.lcs);
 }
 
 test "DPatchEncoder next" {
