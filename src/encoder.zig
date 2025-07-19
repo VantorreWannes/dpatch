@@ -2,20 +2,34 @@ const std = @import("std");
 const lis_lcs = @import("lis_lcs");
 const testing = std.testing;
 
+/// `DPatchEncoder` is a stateful encoder that generates patch instructions
+/// by comparing a source and a target sequence. It uses the longest common
+/// subsequence (LCS) to identify common parts and generates insert instructions
+/// for the differences.
 pub fn DPatchEncoder(comptime T: type) type {
     return struct {
+        /// Represents a copy operation from the source.
         pub const CopyDetails = struct {
+            /// The starting position in the source sequence.
             start: usize,
+            /// The number of elements to copy.
             len: usize,
         };
 
+        /// Represents an insert operation. It can be either new data
+        /// or a copy from data that was previously inserted.
         pub const InsertInstruction = union(enum) {
+            /// A copy from the insert buffer (previously inserted data).
             copy: CopyDetails,
+            /// New data to be inserted.
             data: []const T,
         };
 
+        /// Represents a single instruction in the dpatch.
         pub const DPatchInstruction = union(enum) {
+            /// A copy from the source sequence.
             copy: CopyDetails,
+            /// An insert operation.
             insert: InsertInstruction,
         };
 
@@ -29,6 +43,24 @@ pub fn DPatchEncoder(comptime T: type) type {
         lcs_index: usize,
         insert_buffer: std.ArrayList(T),
 
+        /// Initializes a new `DPatchEncoder`.
+        ///
+        /// This computes the longest common subsequence (LCS) between the source and target
+        /// which is used to generate the patch instructions.
+        ///
+        /// # Parameters
+        ///
+        /// - `source`: The original sequence of data.
+        /// - `target`: The new sequence of data.
+        /// - `allocator`: An allocator for internal data structures.
+        ///
+        /// # Returns
+        ///
+        /// A new `DPatchEncoder` instance.
+        ///
+        /// # Errors
+        ///
+        /// Can return an error if memory allocation fails.
         pub fn init(source: []const T, target: []const T, allocator: std.mem.Allocator) !DPatchEncoder(T) {
             const lcs = try lis_lcs.longestCommonSubsequence(T, allocator, source, target);
 
@@ -44,6 +76,7 @@ pub fn DPatchEncoder(comptime T: type) type {
             };
         }
 
+        /// Deinitializes the `DPatchEncoder`, freeing any allocated memory.
         pub fn deinit(self: *DPatchEncoder(T)) void {
             self.allocator.free(self.lcs);
             self.insert_buffer.deinit();
@@ -59,6 +92,28 @@ pub fn DPatchEncoder(comptime T: type) type {
             return DPatchInstruction{ .insert = instruction };
         }
 
+        /// Generates the next patch instruction.
+        ///
+        /// This method walks through the target sequence and compares it with the source
+        /// sequence, using the pre-computed LCS. It produces either a `copy` instruction
+        /// if a common part is found, or an `insert` instruction for new data.
+        ///
+        /// The encoder tries to be smart about insert instructions. If the data to be
+        /// inserted has been inserted before, it will generate a `.insert.copy` instruction
+        /// to reduce patch size.
+        ///
+        /// The caller should repeatedly call `next` until it returns `null` to get all
+        /// instructions for the patch.
+        ///
+        /// # Returns
+        ///
+        /// The next `DPatchInstruction`, or `null` if the end of the target has been reached
+        /// and all instructions have been generated.
+        ///
+        /// # Errors
+        ///
+        /// Can return an error if memory allocation fails during the creation of an
+        /// insert instruction.
         pub fn next(self: *DPatchEncoder(T)) !?DPatchInstruction {
             if (self.target_index >= self.target.len) {
                 return null;
@@ -126,7 +181,7 @@ test "DPatchEncoder init" {
 
     try std.testing.expectEqualSlices(u8, source, encoder.source);
     try std.testing.expectEqualSlices(u8, target, encoder.target);
-    try std.testing.expectEqualStrings( "ea", encoder.lcs);
+    try std.testing.expectEqualStrings("ea", encoder.lcs);
 }
 
 test "DPatchEncoder next" {

@@ -1,88 +1,107 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    // Options
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
     const use_llvm = b.option(bool, "llvm", "Use the LLVM backend");
 
+    // Packages
+    const zbench_pkg = b.dependency("zbench", .{ .target = target, .optimize = optimize });
     const lis_lcs_pkg = b.dependency("lis_lcs", .{ .target = target, .optimize = optimize });
+
+    // Modules
+    const zbench_mod = zbench_pkg.module("zbench");
     const lis_lcs_mod = lis_lcs_pkg.module("lis_lcs");
 
-    const mod = b.addModule("dpatch", .{
-        .root_source_file = b.path("src/root.zig"),
+    const root_mod = b.addModule("dpatch", .{ .root_source_file = b.path("src/root.zig"), .target = target, .optimize = optimize, .imports = &.{.{ .name = "lis_lcs", .module = lis_lcs_mod }} });
+
+    const main_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
+        .optimize = optimize,
         .imports = &.{
-            .{ .name = "lis_lcs", .module = lis_lcs_mod },
+            .{ .name = "dpatch", .module = root_mod },
         },
     });
 
-    const exe = b.addExecutable(.{
+    const bench_mod = b.createModule(.{
+        .root_source_file = b.path("src/bench.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{ .{ .name = "dpatch", .module = root_mod }, .{ .name = "zbench", .module = zbench_mod }, .{ .name = "lis_lcs", .module = lis_lcs_mod } },
+    });
+
+    // Libraries
+    const root_lib = b.addLibrary(.{
         .name = "dpatch",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "dpatch", .module = mod },
-                .{ .name = "lis_lcs", .module = lis_lcs_mod },
-            },
-        }),
+        .root_module = root_mod,
         .use_llvm = use_llvm,
     });
 
-    b.installArtifact(exe);
+    // Directories
+    const docs_dir = b.addInstallDirectory(.{
+        .source_dir = root_lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
 
-    const run_step = b.step("run", "Run the app");
+    // Binaries
+    const main_bin = b.addExecutable(.{
+        .name = "dpatch",
+        .root_module = main_mod,
+        .use_llvm = use_llvm,
+    });
 
-    const run_cmd = b.addRunArtifact(exe);
-    run_step.dependOn(&run_cmd.step);
+    const bench_bin = b.addExecutable(.{
+        .name = "benchmarks",
+        .root_module = bench_mod,
+        .use_llvm = use_llvm,
+    });
 
-    run_cmd.step.dependOn(b.getInstallStep());
+    const root_test_bin = b.addTest(.{
+        .name = "root_tests",
+        .root_module = root_mod,
+        .use_llvm = use_llvm,
+    });
+
+    const main_test_bin = b.addTest(.{
+        .name = "main_tests",
+        .root_module = main_mod,
+        .use_llvm = use_llvm,
+    });
+
+    // Commands
+    const run_cmd = b.addRunArtifact(main_bin);
+    const bench_cmd = b.addRunArtifact(bench_bin);
+    const test_root_cmd = b.addRunArtifact(root_test_bin);
+    const test_main_cmd = b.addRunArtifact(main_test_bin);
 
     if (b.args) |args| {
         run_cmd.addArgs(args);
+        bench_cmd.addArgs(args);
     }
 
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
-        .use_llvm = use_llvm,
-    });
+    run_cmd.step.dependOn(b.getInstallStep());
 
-    const run_mod_tests = b.addRunArtifact(mod_tests);
+    // Steps - Run
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-        .use_llvm = use_llvm,
-    });
-
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
-
-    const zbench_pkg = b.dependency("zbench", .{ .target = target, .optimize = optimize });
-    const zbench_mod = zbench_pkg.module("zbench");
-
-    const bench_exe = b.addExecutable(.{
-        .name = "benchmarks",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/bench.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "dpatch", .module = mod },
-                .{ .name = "zbench", .module = zbench_mod },
-                .{ .name = "lis_lcs", .module = lis_lcs_mod },
-            },
-        }),
-    });
-
-    b.installArtifact(bench_exe);
-
-    const bench_cmd = b.addRunArtifact(bench_exe);
-
+    // Steps - Benchmarks
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&bench_cmd.step);
+
+    // Steps - Tests
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&test_main_cmd.step);
+    test_step.dependOn(&test_root_cmd.step);
+
+    // Steps - Docs
+    const docs_step = b.step("docs", "Install docs into zig-out/docs");
+    docs_step.dependOn(&docs_dir.step);
+
+    // Install
+    b.installArtifact(main_bin);
+    b.installArtifact(root_test_bin);
 }

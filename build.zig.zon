@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.0-dev.919+044ccf413",
     .dependencies = .{
         .lis_lcs = .{
-            .url = "git+https://github.com/VantorreWannes/lis_lcs.git#afc573cef2c4e10f6ea0b97273854c85204a9e97",
-            .hash = "lis_lcs-0.0.0-BZdXtm8mAADb9JQ2B5vyItfa8dNmrdiaMCf5ltzdykPD",
+            .url = "git+https://github.com/VantorreWannes/lis_lcs.git#3d4b148f1686d51fe2b020980f520e3c63e21bf5",
+            .hash = "lis_lcs-0.0.0-BZdXtipCAAAbi-qid_7EoQtge0JK44G3zOgBL764OtdP",
         },
         .zbench = .{
             .url = "git+https://github.com/hendriknielaender/zBench.git#c64bb43a3e32c5c62c02058ad7247e072301708d",
