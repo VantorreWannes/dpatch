@@ -90,15 +90,25 @@ pub fn decode(
     return target.toOwnedSlice();
 }
 
-test "encode and decode" {
+test encode {
     const allocator = testing.allocator;
     const source = "aaacccbbb";
     const target = "xxxaaaxxxbbb";
     const patch = try encode(u8, source, target, allocator);
     defer allocator.free(patch);
-    const decoded = try decode(u8, source, patch, allocator);
-    defer allocator.free(decoded);
-    try std.testing.expectEqualStrings(target, decoded);
+    const expected = &[_]u8{ 3, 3, 120, 120, 120, 1, 0, 3, 2, 0, 3, 1, 6, 3 };
+    try testing.expectEqualSlices(u8, expected, patch);
+}
+
+test decode {
+    const allocator = testing.allocator;
+    const source = "aaacccbbb";
+    const patch = &[_]u8{ 3, 3, 120, 120, 120, 1, 0, 3, 2, 0, 3, 1, 6, 3 };
+    const target = try decode(u8, source, patch, allocator);
+    defer allocator.free(target);
+
+    const expected = "xxxaaaxxxbbb";
+    try testing.expectEqualSlices(u8, expected, target);
 }
 
 test "fuzz encode and decode" {
