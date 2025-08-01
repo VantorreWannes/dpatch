@@ -1,6 +1,9 @@
 const std = @import("std");
 const lis_lcs = @import("lis_lcs");
 const testing = std.testing;
+const LCSError = lis_lcs.LongestCommonSubsequenceError;
+
+pub const DPatchEncoderError = error{OutOfMemory} || LCSError;
 
 /// `DPatchEncoder` is a stateful encoder that generates patch instructions
 /// by comparing a source and a target sequence. It uses the longest common
@@ -61,7 +64,7 @@ pub fn DPatchEncoder(comptime T: type) type {
         /// # Errors
         ///
         /// Can return an error if memory allocation fails.
-        pub fn init(source: []const T, target: []const T, allocator: std.mem.Allocator) !DPatchEncoder(T) {
+        pub fn init(source: []const T, target: []const T, allocator: std.mem.Allocator) DPatchEncoderError!DPatchEncoder(T) {
             const lcs = try lis_lcs.longestCommonSubsequence(T, allocator, source, target);
 
             return DPatchEncoder(T){
@@ -82,7 +85,7 @@ pub fn DPatchEncoder(comptime T: type) type {
             self.insert_buffer.deinit();
         }
 
-        fn createInsertInstruction(self: *DPatchEncoder(T), data: []const T) !DPatchInstruction {
+        fn createInsertInstruction(self: *DPatchEncoder(T), data: []const T) DPatchEncoderError!DPatchInstruction {
             const instruction: InsertInstruction = if (std.mem.indexOf(T, self.insert_buffer.items, data)) |copy_start|
                 .{ .copy = .{ .start = copy_start, .len = data.len } }
             else
@@ -114,7 +117,7 @@ pub fn DPatchEncoder(comptime T: type) type {
         ///
         /// Can return an error if memory allocation fails during the creation of an
         /// insert instruction.
-        pub fn next(self: *DPatchEncoder(T)) !?DPatchInstruction {
+        pub fn next(self: *DPatchEncoder(T)) DPatchEncoderError!?DPatchInstruction {
             if (self.target_index >= self.target.len) {
                 return null;
             }
