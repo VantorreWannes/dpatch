@@ -6,6 +6,8 @@ const COPY_TAG: u8 = 0x01;
 const INSERT_COPY_TAG: u8 = 0x02;
 const INSERT_DATA_TAG: u8 = 0x03;
 
+pub const DPatchError = error{ EndOfStream, Overflow, InvalidPatchFormat } || encoder.DPatchEncoderError;
+
 /// Encodes the difference between a source and a target sequence into a patch.
 ///
 /// This function computes the longest common subsequence (LCS) between the source and target
@@ -32,7 +34,7 @@ pub fn encode(
     source: []const T,
     target: []const T,
     allocator: std.mem.Allocator,
-) ![]const T {
+) DPatchError![]const T {
     var dpatch_encoder = try encoder.DPatchEncoder(T).init(source, target, allocator);
     defer dpatch_encoder.deinit();
     var patch = std.ArrayList(u8).init(allocator);
@@ -91,7 +93,7 @@ pub fn decode(
     source: []const T,
     patch: []const u8,
     allocator: std.mem.Allocator,
-) ![]const T {
+) DPatchError![]const T {
     var target = std.ArrayList(T).init(allocator);
     defer target.deinit();
 
