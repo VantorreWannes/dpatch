@@ -75,14 +75,14 @@ pub fn DPatchEncoder(comptime T: type) type {
                 .source_index = 0,
                 .target_index = 0,
                 .lcs_index = 0,
-                .insert_buffer = std.ArrayList(T).init(allocator),
+                .insert_buffer = .empty,
             };
         }
 
         /// Deinitializes the `DPatchEncoder`, freeing any allocated memory.
         pub fn deinit(self: *DPatchEncoder(T)) void {
             self.allocator.free(self.lcs);
-            self.insert_buffer.deinit();
+            self.insert_buffer.deinit(self.allocator);
         }
 
         fn createInsertInstruction(self: *DPatchEncoder(T), data: []const T) DPatchEncoderError!DPatchInstruction {
@@ -91,7 +91,7 @@ pub fn DPatchEncoder(comptime T: type) type {
             else
                 .{ .data = data };
 
-            try self.insert_buffer.appendSlice(data);
+            try self.insert_buffer.appendSlice(self.allocator, data);
             return DPatchInstruction{ .insert = instruction };
         }
 
