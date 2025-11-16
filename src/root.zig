@@ -6,7 +6,7 @@ const COPY_TAG: u8 = 0x01;
 const INSERT_COPY_TAG: u8 = 0x02;
 const INSERT_DATA_TAG: u8 = 0x03;
 
-pub const DPatchError = error{ EndOfStream, Overflow, InvalidPatchFormat } || encoder.DPatchEncoderError;
+pub const DPatchError = error{ EndOfStream, Overflow, InvalidPatchFormat, WriteFailed } || encoder.DPatchEncoderError;
 
 /// Encodes the difference between a source and a target sequence into a patch.
 ///
@@ -37,9 +37,9 @@ pub fn encode(
 ) DPatchError![]const T {
     var dpatch_encoder = try encoder.DPatchEncoder(T).init(source, target, allocator);
     defer dpatch_encoder.deinit();
-    var patch = std.ArrayList(u8).init(allocator);
-    defer patch.deinit();
-    var writer = patch.writer();
+    var allocating_writer = std.Io.Writer.Allocating.init(allocator);
+    defer allocating_writer.deinit();
+    var writer = &allocating_writer.writer;
 
     while (try dpatch_encoder.next()) |delta| {
         switch (delta) {
@@ -64,7 +64,8 @@ pub fn encode(
             },
         }
     }
-    return try patch.toOwnedSlice();
+
+    return try allocating_writer.toOwnedSlice();
 }
 
 /// Decodes a patch to reconstruct the target sequence from a source sequence.
@@ -94,11 +95,11 @@ pub fn decode(
     patch: []const u8,
     allocator: std.mem.Allocator,
 ) DPatchError![]const T {
-    var target = std.ArrayList(T).init(allocator);
-    defer target.deinit();
+    var target: std.ArrayList(T) = .empty;
+    defer target.deinit(allocator);
 
-    var insert_buffer = std.ArrayList(T).init(allocator);
-    defer insert_buffer.deinit();
+    var insert_buffer: std.ArrayList(T) = .empty;
+    defer insert_buffer.deinit(allocator);
 
     var stream = std.io.fixedBufferStream(patch);
     const reader = stream.reader();
@@ -109,14 +110,14 @@ pub fn decode(
             COPY_TAG => {
                 const start: usize = try std.leb.readUleb128(usize, reader);
                 const len: usize = try std.leb.readUleb128(usize, reader);
-                try target.appendSlice(source[start .. start + len]);
+                try target.appendSlice(allocator, source[start .. start + len]);
             },
             INSERT_COPY_TAG => {
                 const start: usize = try std.leb.readUleb128(usize, reader);
                 const len: usize = try std.leb.readUleb128(usize, reader);
                 const data = insert_buffer.items[start .. start + len];
-                try target.appendSlice(data);
-                try insert_buffer.appendSlice(data);
+                try target.appendSlice(allocator, data);
+                try insert_buffer.appendSlice(allocator, data);
             },
             INSERT_DATA_TAG => {
                 const len: usize = try std.leb.readUleb128(usize, reader);
@@ -124,14 +125,14 @@ pub fn decode(
                 defer allocator.free(data);
                 _ = try reader.readAll(data);
 
-                try target.appendSlice(data);
-                try insert_buffer.appendSlice(data);
+                try target.appendSlice(allocator, data);
+                try insert_buffer.appendSlice(allocator, data);
             },
             else => return error.InvalidPatchFormat,
         }
     }
 
-    return target.toOwnedSlice();
+    return target.toOwnedSlice(allocator);
 }
 
 test encode {
